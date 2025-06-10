@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Color Cascade</title>
+  <link rel="stylesheet" href="color-cascade.css">
+</head>
+<body>
+  <div class="game-container">
+    <h1>Color Cascade</h1>
+    
+    <!-- Enhanced notification area for better stacking -->
+    <div class="notification-area" id="notification-area"></div>
+    
+    <div class="progress-bar">
+      <div class="progress-fill" id="timer-bar"></div>
+    </div>
+    
+    <div class="info-panel">
+      <div class="info-item">
+        <span class="info-label">Score</span>
+        <span class="info-value" id="score">0</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Level</span>
+        <span class="info-value" id="level">1</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Matches</span>
+        <span class="info-value" id="matches">0</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Difficulty</span>
+        <span class="info-value" id="difficulty">0%</span>
+      </div>
+    </div>
+    
+    <div class="grid" id="game-grid">
+      <div class="combo-indicator" id="combo-indicator">1x</div>
+      <div class="combo-timer" id="combo-timer"><div class="combo-timer-fill" id="combo-timer-fill"></div></div>
+    </div>
+    
+    <div class="controls">
+      <button id="new-game-btn">New Game</button>
+      <button id="high-scores-btn">High Scores</button>
+      <button id="sound-toggle-btn">🔊</button>
+      <button id="settings-btn">⚙️ Settings</button>
+    </div>
+  </div>
+  
+  <div class="modal" id="game-over-modal">
+    <div class="modal-content">
+      <h2>Game Over!</h2>
+      <p>Your final score:</p>
+      <h3 id="final-score">0</h3>
+      <div class="controls">
+        <button id="restart-btn">Play Again</button>
+        <button id="share-btn">Share Score</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal" id="high-scores-modal">
+    <div class="modal-content">
+      <h2>High Scores</h2>
+      <div class="high-scores" id="high-scores-list">
+        <!-- High scores will be populated here -->
+      </div>
+      <button id="close-scores-btn">Close</button>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal" id="settings-modal">
+    <div class="modal-content">
+      <h2>Developer Settings</h2>
+      
+      <div class="settings-section">
+        <h3>Difficulty Settings</h3>
+        <div class="setting-row">
+          <label for="difficulty-level">Base Difficulty:</label>
+          <input type="range" id="difficulty-level" min="1" max="5" value="3" step="0.5">
+          <span id="difficulty-value">3</span>
+        </div>
+        
+        <div class="setting-row">
+          <label for="time-multiplier">Time Reduction:</label>
+          <input type="range" id="time-multiplier" min="0.85" max="0.98" value="0.92" step="0.01">
+          <span id="time-multiplier-value">0.92</span>
+        </div>
+        
+        <div class="setting-row">
+          <label for="combo-timeout">Combo Timeout (ms):</label>
+          <input type="range" id="combo-timeout" min="1500" max="6000" value="4000" step="100">
+          <span id="combo-timeout-value">4000</span>
+        </div>
+        
+        <div class="setting-row">
+          <label for="starting-time">Starting Time (s):</label>
+          <input type="range" id="starting-time" min="30" max="90" value="50" step="5">
+          <span id="starting-time-value">50</span>
+        </div>
+      </div>
+      
+      <div class="settings-section">
+        <h3>Theme Settings</h3>
+        <div class="theme-options">
+          <button class="theme-btn active" data-theme="default">Default</button>
+          <button class="theme-btn" data-theme="neon">Neon</button>
+          <button class="theme-btn" data-theme="pastel">Pastel</button>
+          <button class="theme-btn" data-theme="monochrome">Monochrome</button>
+          <button class="theme-btn" data-theme="dark">Dark</button>
+          <!-- Time of day themes -->
+          <button class="theme-btn" data-theme="morning">Morning</button>
+          <button class="theme-btn" data-theme="afternoon">Afternoon</button>
+          <button class="theme-btn" data-theme="evening">Evening</button>
+          <button class="theme-btn" data-theme="night">Night</button>
+          <!-- Season themes -->
+          <button class="theme-btn" data-theme="spring">Spring</button>
+          <button class="theme-btn" data-theme="summer">Summer</button>
+          <button class="theme-btn" data-theme="autumn">Autumn</button>
+          <button class="theme-btn" data-theme="winter">Winter</button>
+        </div>
+      </div>
+      
+      <div class="settings-actions">
+        <button id="apply-settings-btn">Apply</button>
+        <button id="reset-settings-btn">Reset to Default</button>
+        <button id="close-settings-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="color-cascade.js"></script>
+</body>
+</html>
