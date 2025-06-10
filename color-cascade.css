@@ -76,19 +76,21 @@ h1 {
 
 .combo-indicator {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.8);
+  bottom: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
   color: gold;
-  padding: 10px 20px;
-  border-radius: 25px;
-  font-size: 2.5rem;
+  padding: 8px 24px;
+  border-radius: 30px;
+  font-size: 2rem;
   font-weight: bold;
   opacity: 0;
   transition: all 0.3s ease;
   z-index: 30;
   box-shadow: 0 0 20px rgba(255, 215, 0, 0.7);
-  border: 3px solid gold;
+  border: 2px solid gold;
+  pointer-events: none;
 }
 
 .combo-indicator.active {
@@ -97,16 +99,18 @@ h1 {
 
 .combo-timer {
   position: absolute;
-  top: 40px;
-  right: 10px;
-  width: 50px;
-  height: 4px;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 6px;
   background: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: 30;
+  pointer-events: none;
 }
 
 .combo-timer-fill {
@@ -126,7 +130,7 @@ h1 {
   grid-template-columns: repeat(6, 1fr);
   grid-template-rows: repeat(6, 1fr);
   gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 80px;
   aspect-ratio: 1 / 1;
   position: relative;
   background: var(--grid-bg);
@@ -585,26 +589,6 @@ button:hover {
   box-shadow: 0 0 10px currentColor;
 }
 
-.combo-timer {
-  position: absolute;
-  top: 80px;
-  right: 20px;
-  width: 100px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: 30;
-}
-
-.combo-timer-fill {
-  height: 100%;
-  width: 100%;
-  background: gold;
-  transform-origin: left center;
-}
 
 .combo-debug {
   position: absolute;
@@ -844,12 +828,21 @@ button:hover {
   z-index: 1000;
   backdrop-filter: blur(10px);
   transition: opacity 0.5s ease;
+  overflow-y: auto;
 }
 
 .start-screen-content {
   text-align: center;
   max-width: 600px;
   padding: 40px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
 }
 
 .game-logo {
@@ -857,6 +850,26 @@ button:hover {
   height: 300px;
   margin: 0 auto 30px;
   position: relative;
+  opacity: 0.8;
+  filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+}
+
+@media (max-width: 768px) {
+  .game-logo {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto 20px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .game-logo svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
 }
 
 .start-title {
@@ -869,6 +882,15 @@ button:hover {
   text-fill-color: transparent;
   animation: gradientShift 3s ease infinite;
   margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 768px) {
+  .start-title {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+  }
 }
 
 @keyframes gradientShift {
@@ -881,6 +903,13 @@ button:hover {
   color: rgba(255, 255, 255, 0.8);
   margin-bottom: 40px;
   animation: fadeInUp 1s ease 0.5s both;
+}
+
+@media (max-width: 768px) {
+  .start-subtitle {
+    font-size: 1rem;
+    margin-bottom: 20px;
+  }
 }
 
 @keyframes fadeInUp {
@@ -904,6 +933,13 @@ button:hover {
 .start-button:hover {
   transform: translateY(-3px);
   box-shadow: 0 15px 40px rgba(138, 45, 226, 0.6);
+}
+
+@media (max-width: 768px) {
+  .start-button {
+    font-size: 1.2rem;
+    padding: 12px 40px;
+  }
 }
 
 /* D3 animation container */
@@ -947,4 +983,246 @@ button:hover {
 .game-active .grid {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* Achievement notification styles */
+.achievement-unlocked {
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  color: #000;
+  padding: 15px 20px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  animation: achievementSlide 0.5s ease;
+  box-shadow: 0 10px 30px rgba(255, 215, 0, 0.5);
+  transition: opacity 0.5s ease;
+}
+
+.achievement-icon {
+  font-size: 2rem;
+}
+
+.achievement-info {
+  text-align: left;
+}
+
+.achievement-title {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  font-weight: normal;
+}
+
+.achievement-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 2px 0;
+}
+
+.achievement-desc {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+@keyframes achievementSlide {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Enhanced high scores modal styles */
+.stats-header {
+  margin-bottom: 20px;
+}
+
+.stats-header h3 {
+  color: #FFD700;
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.stat-item {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.8;
+  margin-bottom: 5px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #FFD700;
+}
+
+.score-item-detailed {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.score-rank {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #FFD700;
+  width: 50px;
+  text-align: center;
+}
+
+.score-details {
+  flex: 1;
+  margin-left: 15px;
+}
+
+.score-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.score-value {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.score-level {
+  color: #888;
+}
+
+.score-meta {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.score-meta span {
+  margin-right: 10px;
+}
+
+/* Achievements grid */
+.achievements-section {
+  margin-top: 30px;
+}
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.achievement-item {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.achievement-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
+}
+
+.achievement-item.unlocked {
+  background: rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(255, 215, 0, 0.5);
+}
+
+.achievement-item.locked {
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+.achievement-item .achievement-icon {
+  font-size: 2rem;
+  margin-bottom: 5px;
+}
+
+.achievement-item .achievement-name {
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.achievement-date {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+/* Larger modal for stats */
+#high-scores-modal .modal-content {
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .achievements-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Welcome back message on start screen */
+.welcome-back {
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  width: 100%;
+  max-width: 400px;
+}
+
+.welcome-back p {
+  margin: 5px 0;
+  color: #FFD700;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  .welcome-back {
+    margin: 10px 0;
+    padding: 10px;
+  }
+  
+  .welcome-back p {
+    font-size: 0.9rem;
+    margin: 3px 0;
+  }
+  
+  .start-screen-content {
+    padding: 20px;
+    min-height: auto;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+  
+  .start-button {
+    margin-top: 20px;
+  }
 }

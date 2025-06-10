@@ -57,10 +57,22 @@
       significantComboThreshold: 3    // Same
     };
 
-    // Function to calculate level configuration
+    // Function to calculate level configuration with adaptive difficulty
     function calculateLevelConfig(level) {
-      // Increasing difficulty factors based on level
-      // We use non-linear scaling for higher levels to make them increasingly challenging
+      // Get player performance metrics for adaptive difficulty
+      const profile = PlayerProfile.load();
+      const performanceRatio = profile.stats.gamesPlayed > 0 ? 
+        profile.stats.avgScore / (profile.stats.avgLevel * 100) : 1;
+      
+      // Adaptive difficulty factor (0.8 to 1.2)
+      // Higher performance ratio = harder game
+      const adaptiveFactor = Math.min(1.2, Math.max(0.8, performanceRatio));
+      
+      // Apply user-selected difficulty settings
+      const userDifficultyFactor = gameSettings.difficultyLevel / 3;
+      
+      // Combine factors
+      const difficultyMultiplier = adaptiveFactor * userDifficultyFactor;
       
       // For levels above 20, we apply a more aggressive scaling
       const advancedLevel = Math.max(0, level - 20);
@@ -103,6 +115,9 @@
         time = Math.max(BASE_LEVEL_CONFIG.minTime * 0.75, Math.floor(time / expertFactor));
       }
       
+      // Apply adaptive difficulty to time
+      time = Math.floor(time / difficultyMultiplier);
+      
       // Calculate combo timeout for this level - gets shorter in higher levels
       const comboTimeout = Math.max(
         COMBO_CONFIG.minTimeout,
@@ -130,6 +145,92 @@
       );
     }
 
+    // Player profile and statistics management
+    const PlayerProfile = {
+      load() {
+        const defaultProfile = {
+          name: 'Player',
+          created: new Date().toISOString(),
+          stats: {
+            gamesPlayed: 0,
+            totalScore: 0,
+            highestLevel: 0,
+            highestScore: 0,
+            totalMatches: 0,
+            totalCombos: 0,
+            bestCombo: 0,
+            totalPlayTime: 0,
+            lastPlayed: null,
+            avgScore: 0,
+            avgLevel: 0
+          },
+          achievements: [],
+          preferences: {
+            soundEnabled: true,
+            theme: 'default',
+            difficulty: 3
+          },
+          highScores: []
+        };
+        
+        const saved = localStorage.getItem('colorCascadeProfile');
+        return saved ? { ...defaultProfile, ...JSON.parse(saved) } : defaultProfile;
+      },
+      
+      save(profile) {
+        localStorage.setItem('colorCascadeProfile', JSON.stringify(profile));
+      },
+      
+      updateStats(gameData) {
+        const profile = this.load();
+        profile.stats.gamesPlayed++;
+        profile.stats.totalScore += gameData.score;
+        profile.stats.highestLevel = Math.max(profile.stats.highestLevel, gameData.level);
+        profile.stats.highestScore = Math.max(profile.stats.highestScore, gameData.score);
+        profile.stats.totalMatches += gameData.matches;
+        profile.stats.totalCombos += gameData.combosAchieved || 0;
+        profile.stats.bestCombo = Math.max(profile.stats.bestCombo, gameData.bestCombo || 0);
+        profile.stats.lastPlayed = new Date().toISOString();
+        profile.stats.avgScore = Math.floor(profile.stats.totalScore / profile.stats.gamesPlayed);
+        profile.stats.avgLevel = Math.floor((profile.stats.avgLevel * (profile.stats.gamesPlayed - 1) + gameData.level) / profile.stats.gamesPlayed);
+        
+        this.save(profile);
+        return profile;
+      },
+      
+      addAchievement(achievement) {
+        const profile = this.load();
+        if (!profile.achievements.find(a => a.id === achievement.id)) {
+          profile.achievements.push({
+            ...achievement,
+            unlockedAt: new Date().toISOString()
+          });
+          this.save(profile);
+          return true;
+        }
+        return false;
+      }
+    };
+    
+    // Achievement definitions
+    const ACHIEVEMENTS = [
+      { id: 'first_game', name: 'Welcome!', description: 'Play your first game', icon: '🎮' },
+      { id: 'score_1000', name: 'Scorer', description: 'Score 1,000 points', icon: '⭐' },
+      { id: 'score_5000', name: 'High Scorer', description: 'Score 5,000 points', icon: '🌟' },
+      { id: 'score_10000', name: 'Master Scorer', description: 'Score 10,000 points', icon: '💫' },
+      { id: 'level_10', name: 'Climbing', description: 'Reach level 10', icon: '📈' },
+      { id: 'level_25', name: 'Ascending', description: 'Reach level 25', icon: '🚀' },
+      { id: 'level_50', name: 'Summit', description: 'Reach level 50', icon: '🏔️' },
+      { id: 'combo_5', name: 'Combo Starter', description: 'Get a 5x combo', icon: '🔥' },
+      { id: 'combo_10', name: 'Combo Master', description: 'Get a 10x combo', icon: '💥' },
+      { id: 'perfect_level', name: 'Perfectionist', description: 'Clear a level with 100% matches', icon: '✨' },
+      { id: 'speed_demon', name: 'Speed Demon', description: 'Clear a level in under 10 seconds', icon: '⚡' },
+      { id: 'endurance', name: 'Endurance', description: 'Play for 30 minutes straight', icon: '⏱️' }
+    ];
+    
+    // Load player profile on start
+    let playerProfile = PlayerProfile.load();
+
     let gameState = {
       level: 1,
       score: 0,
@@ -141,15 +242,20 @@
       tiles: [],
       timerInterval: null,
       scoreMultiplier: 1,
-      soundEnabled: true,
+      soundEnabled: playerProfile.preferences.soundEnabled,
       consecutiveMatches: 0,
       comboMultiplier: 1,
       comboChain: [],
       comboConnections: [],
       activeComboColor: null,
       comboTimeoutId: null,
-      highScores: JSON.parse(localStorage.getItem('matchingGameHighScores')) || [],
-      comboTrails: []
+      highScores: playerProfile.highScores || [],
+      comboTrails: [],
+      // New tracking fields
+      gameStartTime: null,
+      combosAchieved: 0,
+      bestCombo: 0,
+      perfectClear: true
     };
 
     const grid = document.getElementById('game-grid');
@@ -697,15 +803,20 @@
         tiles: [],
         timerInterval: null,
         scoreMultiplier: 1,
-        soundEnabled: true,
+        soundEnabled: playerProfile.preferences.soundEnabled,
         consecutiveMatches: 0,
         comboMultiplier: 1,
         comboChain: [],
         comboConnections: [],
         activeComboColor: null,
         comboTimeoutId: null,
-        highScores: JSON.parse(localStorage.getItem('matchingGameHighScores')) || [],
-        comboTrails: []
+        highScores: playerProfile.highScores || [],
+        comboTrails: [],
+        // Reset tracking fields
+        gameStartTime: Date.now(),
+        combosAchieved: 0,
+        bestCombo: 0,
+        perfectClear: true
       };
 
       scoreElement.textContent = gameState.score;
@@ -984,8 +1095,14 @@
         // Update combo multiplier
         gameState.comboMultiplier = Math.min(COMBO_CONFIG.maxComboMultiplier, gameState.comboChain.length);
         
+        // Track best combo
+        gameState.bestCombo = Math.max(gameState.bestCombo, gameState.comboMultiplier);
+        
         // Update the UI
         showComboText(gameState.comboMultiplier);
+        
+        // Check for combo achievements
+        checkComboAchievements(gameState.comboMultiplier);
         
         // Reset the combo timeout
         if (gameState.comboTimeoutId) {
@@ -1214,6 +1331,11 @@
       gameState.matches++;
       matchesElement.textContent = gameState.matches;
       console.log(`Matches updated: ${gameState.matches}`);
+      
+      // Track combo completion
+      if (gameState.comboMultiplier >= 2) {
+        gameState.combosAchieved++;
+      }
 
       // Award combo bonus for 3+ tiles
       if (gameState.comboMultiplier >= 3) {
@@ -1616,6 +1738,30 @@
         gameState.score += gameState.level * 500;
         scoreElement.textContent = gameState.score;
       }
+      // Calculate play time
+      const playTime = Math.floor((Date.now() - gameState.gameStartTime) / 1000);
+      
+      // Update player profile with game stats
+      const updatedProfile = PlayerProfile.updateStats({
+        score: gameState.score,
+        level: gameState.level,
+        matches: gameState.matches,
+        combosAchieved: gameState.combosAchieved,
+        bestCombo: gameState.bestCombo,
+        playTime: playTime
+      });
+      
+      // Check for first game achievement
+      if (updatedProfile.stats.gamesPlayed === 1 && PlayerProfile.addAchievement(ACHIEVEMENTS.find(a => a.id === 'first_game'))) {
+        setTimeout(() => showAchievementUnlocked('Welcome!'), 1000);
+      }
+      
+      // Check score achievements
+      checkScoreAchievements(gameState.score);
+      
+      // Check level achievements
+      checkLevelAchievements(gameState.level);
+      
       updateHighScores(gameState.score);
       finalScoreElement.textContent = gameState.score;
       showModal(gameOverModal);
@@ -1627,31 +1773,107 @@
     }
 
     function updateHighScores(score) {
-      const highScores = loadHighScores();
-      highScores.push({
+      const profile = PlayerProfile.load();
+      profile.highScores.push({
         score: score,
-        date: new Date().toLocaleDateString()
+        level: gameState.level,
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString(),
+        combos: gameState.combosAchieved,
+        bestCombo: gameState.bestCombo
       });
-      highScores.sort((a, b) => b.score - a.score).splice(10);
-      localStorage.setItem('matchingGameHighScores', JSON.stringify(highScores));
+      profile.highScores.sort((a, b) => b.score - a.score).splice(10);
+      PlayerProfile.save(profile);
     }
 
     function showHighScores() {
-      const highScores = loadHighScores();
+      const profile = PlayerProfile.load();
+      const highScores = profile.highScores;
       highScoresList.innerHTML = '';
+      
+      // Add player stats header
+      const statsHeader = document.createElement('div');
+      statsHeader.className = 'stats-header';
+      statsHeader.innerHTML = `
+        <h3>Career Statistics</h3>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">Games Played</span>
+            <span class="stat-value">${profile.stats.gamesPlayed}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Highest Score</span>
+            <span class="stat-value">${profile.stats.highestScore.toLocaleString()}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Highest Level</span>
+            <span class="stat-value">${profile.stats.highestLevel}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Best Combo</span>
+            <span class="stat-value">${profile.stats.bestCombo}x</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Avg Score</span>
+            <span class="stat-value">${profile.stats.avgScore.toLocaleString()}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Total Matches</span>
+            <span class="stat-value">${profile.stats.totalMatches}</span>
+          </div>
+        </div>
+        <h3 style="margin-top: 20px;">Top 10 Scores</h3>
+      `;
+      highScoresList.appendChild(statsHeader);
+      
       if (highScores.length === 0) {
-        highScoresList.innerHTML = '<p>No high scores yet. Play a game!</p>';
+        highScoresList.innerHTML += '<p>No high scores yet. Play a game!</p>';
       } else {
         highScores.forEach((entry, index) => {
           const scoreItem = document.createElement('div');
-          scoreItem.className = 'score-item';
+          scoreItem.className = 'score-item-detailed';
           scoreItem.innerHTML = `
-            <span>#${index + 1} ${entry.date}</span>
-            <span>${entry.score}</span>
+            <div class="score-rank">#${index + 1}</div>
+            <div class="score-details">
+              <div class="score-main">
+                <span class="score-value">${entry.score.toLocaleString()}</span>
+                <span class="score-level">Level ${entry.level}</span>
+              </div>
+              <div class="score-meta">
+                <span>${entry.date} ${entry.time || ''}</span>
+                ${entry.combos ? `<span>• ${entry.combos} combos</span>` : ''}
+                ${entry.bestCombo ? `<span>• Best: ${entry.bestCombo}x</span>` : ''}
+              </div>
+            </div>
           `;
           highScoresList.appendChild(scoreItem);
         });
       }
+      
+      // Add achievements section
+      const achievementsSection = document.createElement('div');
+      achievementsSection.className = 'achievements-section';
+      achievementsSection.innerHTML = '<h3 style="margin-top: 20px;">Achievements</h3>';
+      
+      const achievementsGrid = document.createElement('div');
+      achievementsGrid.className = 'achievements-grid';
+      
+      ACHIEVEMENTS.forEach(achievement => {
+        const unlocked = profile.achievements.find(a => a.id === achievement.id);
+        const achievementEl = document.createElement('div');
+        achievementEl.className = `achievement-item ${unlocked ? 'unlocked' : 'locked'}`;
+        achievementEl.innerHTML = `
+          <div class="achievement-icon">${achievement.icon}</div>
+          <div class="achievement-name">${achievement.name}</div>
+          ${unlocked ? `<div class="achievement-date">Unlocked ${new Date(unlocked.unlockedAt).toLocaleDateString()}</div>` : ''}
+        `;
+        achievementEl.title = achievement.description;
+        achievementsGrid.appendChild(achievementEl);
+      });
+      
+      achievementsSection.appendChild(achievementsGrid);
+      highScoresList.appendChild(achievementsSection);
+      
       showModal(highScoresModal);
     }
 
@@ -1903,9 +2125,23 @@
         }, 500);
       });
       
+      // Append elements in correct order
       content.appendChild(logoArea);
       content.appendChild(title);
       content.appendChild(subtitle);
+      
+      // Add player welcome message after title/subtitle
+      const profile = PlayerProfile.load();
+      if (profile.stats.gamesPlayed > 0) {
+        const welcomeBack = document.createElement('div');
+        welcomeBack.className = 'welcome-back';
+        welcomeBack.innerHTML = `
+          <p>Welcome back! You've played ${profile.stats.gamesPlayed} games</p>
+          <p>Your best score: ${profile.stats.highestScore.toLocaleString()}</p>
+        `;
+        content.appendChild(welcomeBack);
+      }
+      
       content.appendChild(startButton);
       startScreen.appendChild(content);
       
@@ -1979,23 +2215,32 @@
       animateParticles();
       
       // Create logo animation in the logo area
+      const isMobile = window.innerWidth <= 768;
+      const logoSize = isMobile ? 200 : 300;
+      
       const logoSvg = d3.select(logoArea)
         .append('svg')
-        .attr('width', 300)
-        .attr('height', 300)
-        .attr('viewBox', '0 0 300 300');
+        .attr('width', logoSize)
+        .attr('height', logoSize)
+        .attr('viewBox', `0 0 ${logoSize} ${logoSize}`);
       
       // Create cascading tiles animation
-      const tileSize = 40;
+      const tileSize = isMobile ? 25 : 35;
       const cols = 6;
       const rows = 6;
       const logoTiles = [];
       
+      // Calculate centering offset
+      const totalWidth = cols * tileSize;
+      const totalHeight = rows * tileSize;
+      const offsetX = (logoSize - totalWidth) / 2;
+      const offsetY = (logoSize - totalHeight) / 2;
+      
       for (let i = 0; i < rows; i++) {
         for (let j = 0; j < cols; j++) {
           const tile = {
-            x: 50 + j * tileSize,
-            y: 50 + i * tileSize,
+            x: offsetX + j * tileSize,
+            y: offsetY + i * tileSize,
             color: COLORS[(i + j) % COLORS.length],
             delay: (i + j) * 100
           };
@@ -2009,16 +2254,16 @@
         .append('rect')
         .attr('x', d => d.x)
         .attr('y', -50)
-        .attr('width', tileSize - 5)
-        .attr('height', tileSize - 5)
-        .attr('rx', 8)
+        .attr('width', tileSize - 8)
+        .attr('height', tileSize - 8)
+        .attr('rx', 6)
         .attr('fill', d => d.color)
         .attr('opacity', 0)
         .transition()
         .delay(d => d.delay)
         .duration(800)
         .attr('y', d => d.y)
-        .attr('opacity', 0.8)
+        .attr('opacity', 0.6)
         .transition()
         .duration(2000)
         .attr('transform', function(d, i) {
@@ -2070,6 +2315,66 @@
       }
       
       return isSingleton;
+    }
+
+    // Achievement checking functions
+    function checkComboAchievements(comboLevel) {
+      if (comboLevel >= 5 && PlayerProfile.addAchievement(ACHIEVEMENTS.find(a => a.id === 'combo_5'))) {
+        showAchievementUnlocked('Combo Starter');
+      }
+      if (comboLevel >= 10 && PlayerProfile.addAchievement(ACHIEVEMENTS.find(a => a.id === 'combo_10'))) {
+        showAchievementUnlocked('Combo Master');
+      }
+    }
+    
+    function checkScoreAchievements(score) {
+      if (score >= 1000 && PlayerProfile.addAchievement(ACHIEVEMENTS.find(a => a.id === 'score_1000'))) {
+        showAchievementUnlocked('Scorer');
+      }
+      if (score >= 5000 && PlayerProfile.addAchievement(ACHIEVEMENTS.find(a => a.id === 'score_5000'))) {
+        showAchievementUnlocked('High Scorer');
+      }
+      if (score >= 10000 && PlayerProfile.addAchievement(ACHIEVEMENTS.find(a => a.id === 'score_10000'))) {
+        showAchievementUnlocked('Master Scorer');
+      }
+    }
+    
+    function checkLevelAchievements(level) {
+      if (level >= 10 && PlayerProfile.addAchievement(ACHIEVEMENTS.find(a => a.id === 'level_10'))) {
+        showAchievementUnlocked('Climbing');
+      }
+      if (level >= 25 && PlayerProfile.addAchievement(ACHIEVEMENTS.find(a => a.id === 'level_25'))) {
+        showAchievementUnlocked('Ascending');
+      }
+      if (level >= 50 && PlayerProfile.addAchievement(ACHIEVEMENTS.find(a => a.id === 'level_50'))) {
+        showAchievementUnlocked('Summit');
+      }
+    }
+    
+    function showAchievementUnlocked(name) {
+      const achievement = ACHIEVEMENTS.find(a => a.name === name);
+      if (!achievement) return;
+      
+      const notificationArea = document.getElementById('notification-area');
+      const achievementEl = document.createElement('div');
+      achievementEl.className = 'achievement-unlocked';
+      achievementEl.innerHTML = `
+        <div class="achievement-icon">${achievement.icon}</div>
+        <div class="achievement-info">
+          <div class="achievement-title">Achievement Unlocked!</div>
+          <div class="achievement-name">${achievement.name}</div>
+          <div class="achievement-desc">${achievement.description}</div>
+        </div>
+      `;
+      
+      notificationArea.appendChild(achievementEl);
+      
+      setTimeout(() => {
+        achievementEl.style.opacity = '0';
+        setTimeout(() => achievementEl.remove(), 500);
+      }, 4000);
+      
+      playSound('levelup');
     }
 
     document.addEventListener('DOMContentLoaded', initGame);
@@ -2135,63 +2440,56 @@
 
     // Update UI for displaying level difficulty
     function updateLevelDifficultyDisplay() {
-      // Create a difficulty indicator if it doesn't exist
-      let difficultyIndicator = document.getElementById('difficulty-indicator');
-      if (!difficultyIndicator) {
-        difficultyIndicator = document.createElement('div');
-        difficultyIndicator.id = 'difficulty-indicator';
-        difficultyIndicator.className = 'info-item';
-        
-        // Create label
-        const difficultyLabel = document.createElement('div');
-        difficultyLabel.className = 'info-label';
-        difficultyLabel.textContent = 'Difficulty';
-        
-        // Create value
-        const difficultyValue = document.createElement('div');
-        difficultyValue.className = 'info-value';
-        difficultyValue.id = 'difficulty-value';
-        
-        // Add to indicator
-        difficultyIndicator.appendChild(difficultyLabel);
-        difficultyIndicator.appendChild(difficultyValue);
-        
-        // Add to info panel
-        const infoPanel = document.querySelector('.info-panel');
-        infoPanel.appendChild(difficultyIndicator);
-      }
+      // Use the existing difficulty element
+      const difficultyElement = document.getElementById('difficulty');
+      if (!difficultyElement) return;
       
       // Calculate and display the difficulty
       const level = gameState.level;
       let difficulty;
       let difficultyClass = '';
+      let difficultyPercent = 0;
       
       if (level <= 10) {
         difficulty = 'Novice';
         difficultyClass = 'difficulty-novice';
+        difficultyPercent = Math.round((level / 10) * 20); // 0-20%
       } else if (level <= 20) {
         difficulty = 'Advanced';
         difficultyClass = 'difficulty-advanced';
+        difficultyPercent = 20 + Math.round(((level - 10) / 10) * 20); // 20-40%
       } else if (level <= 35) {
         difficulty = 'Expert';
         difficultyClass = 'difficulty-expert';
+        difficultyPercent = 40 + Math.round(((level - 20) / 15) * 20); // 40-60%
       } else if (level <= 50) {
         difficulty = 'Master';
         difficultyClass = 'difficulty-master';
+        difficultyPercent = 60 + Math.round(((level - 35) / 15) * 20); // 60-80%
       } else if (level <= 75) {
         difficulty = 'Grandmaster';
         difficultyClass = 'difficulty-grandmaster';
+        difficultyPercent = 80 + Math.round(((level - 50) / 25) * 15); // 80-95%
       } else {
         difficulty = 'Legendary';
         difficultyClass = 'difficulty-legendary';
+        difficultyPercent = 95 + Math.min(5, Math.round((level - 75) / 5)); // 95-100%
       }
       
-      // Update the display
-      const difficultyValue = document.getElementById('difficulty-value');
-      difficultyValue.textContent = difficulty;
+      // Get adaptive difficulty factor
+      const profile = PlayerProfile.load();
+      const performanceRatio = profile.stats.gamesPlayed > 0 ? 
+        profile.stats.avgScore / (profile.stats.avgLevel * 100) : 1;
+      const adaptiveFactor = Math.min(1.2, Math.max(0.8, performanceRatio));
+      
+      // Adjust percentage based on adaptive difficulty
+      difficultyPercent = Math.min(100, Math.round(difficultyPercent * adaptiveFactor));
+      
+      // Update the display with both text and percentage
+      difficultyElement.textContent = `${difficulty} (${difficultyPercent}%)`;
       
       // Remove any existing difficulty classes
-      const classList = difficultyValue.classList;
+      const classList = difficultyElement.classList;
       ['difficulty-novice', 'difficulty-advanced', 'difficulty-expert', 
        'difficulty-master', 'difficulty-grandmaster', 'difficulty-legendary'].forEach(cls => {
         classList.remove(cls);
