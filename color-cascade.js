@@ -176,8 +176,6 @@
       document.getElementById('sound-toggle-btn').textContent = enabled ? '🔊' : '🔈';
     });
 
-    // Add settings button to controls
-    document.querySelector('.controls').innerHTML += '<button id="settings-btn">⚙️ Settings</button>';
     
     // Add settings button event listener
     document.getElementById('settings-btn').addEventListener('click', showSettings);
@@ -681,8 +679,11 @@
       // Initialize audio context on game start for better mobile support
       initAudioContext();
       
+      // Add game-active class to show we're playing
+      document.querySelector('.game-container').classList.add('game-active');
+      
       // Remove any intro elements or level complete elements
-      document.querySelectorAll('.intro-text, .intro-tile, .demo-trail, .level-complete, .next-level-btn').forEach(el => el.remove());
+      document.querySelectorAll('.intro-text, .intro-tile, .demo-trail, .level-complete, .next-level-btn, .start-screen').forEach(el => el.remove());
       grid.style.animation = '';
 
       gameState = {
@@ -1596,6 +1597,10 @@
     function endGame(completed) {
       clearInterval(gameState.timerInterval);
       gameState.gameActive = false;
+      
+      // Remove game-active class to restore normal interface
+      document.querySelector('.game-container').classList.remove('game-active');
+      
       clearConnectionLines();
       document.querySelectorAll('.power-up-tooltip, .combo-text, .level-complete').forEach(el => el.remove());
       gameState.comboChain = [];
@@ -1862,258 +1867,176 @@
 
     // Add a new function to show an intro animation
     function showIntro() {
-      // Clear any existing content
-      grid.innerHTML = '';
+      // Create start screen
+      const startScreen = document.createElement('div');
+      startScreen.className = 'start-screen';
       
-      // Add combo indicator and timer back to grid
-      const comboIndicatorElem = document.createElement('div');
-      comboIndicatorElem.className = 'combo-indicator';
-      comboIndicatorElem.id = 'combo-indicator';
-      comboIndicatorElem.textContent = '1x';
-      grid.appendChild(comboIndicatorElem);
-
-      const comboTimer = document.createElement('div');
-      comboTimer.className = 'combo-timer';
-      comboTimer.id = 'combo-timer';
-      comboTimer.innerHTML = '<div class="combo-timer-fill" id="combo-timer-fill"></div>';
-      grid.appendChild(comboTimer);
+      const content = document.createElement('div');
+      content.className = 'start-screen-content';
       
-      // Create intro animation elements
-      const introText = document.createElement('div');
-      introText.className = 'intro-text';
-      introText.innerHTML = `
-        <h2>Welcome to Color Cascade!</h2>
-        <p>Match colors to create combos</p>
-        <p>The longer the combo, the higher your score!</p>
-        <p><strong>Warning: Difficulty has been increased!</strong></p>
-      `;
-      introText.style.position = 'absolute';
-      introText.style.top = '50%';
-      introText.style.left = '50%';
-      introText.style.transform = 'translate(-50%, -50%)';
-      introText.style.textAlign = 'center';
-      introText.style.color = 'white';
-      introText.style.zIndex = '100';
-      introText.style.animation = 'fadeIn 2s ease-in-out';
-      grid.appendChild(introText);
+      // Create D3 animation container
+      const d3Container = document.createElement('div');
+      d3Container.className = 'd3-animation-container';
+      startScreen.appendChild(d3Container);
       
-      // Create demo tiles with animations
-      const colors = COLORS.slice(0, 5);
-      const demoTiles = [];
+      // Create logo area with D3 animation
+      const logoArea = document.createElement('div');
+      logoArea.className = 'game-logo';
+      logoArea.id = 'd3-logo';
       
-      // Create a grid of demo tiles
-      for (let i = 0; i < 6; i++) {
-        for (let j = 0; j < 6; j++) {
-          if (Math.random() > 0.3) { // Only create some tiles for a sparse effect
-            const tile = document.createElement('div');
-            tile.className = 'tile intro-tile';
-            tile.style.position = 'absolute';
-            tile.style.width = '40px';
-            tile.style.height = '40px';
-            
-            // Random position within the grid
-            const gridRect = grid.getBoundingClientRect();
-            const x = Math.random() * (gridRect.width - 60) + 30;
-            const y = Math.random() * (gridRect.height - 60) + 30;
-            
-            tile.style.left = `${x}px`;
-            tile.style.top = `${y}px`;
-            
-            // Random color
-            const color = colors[Math.floor(Math.random() * colors.length)];
-            const tileContent = document.createElement('div');
-            tileContent.className = 'tile-content';
-            tileContent.style.backgroundColor = color;
-            tile.appendChild(tileContent);
-            
-            // Random animation delay
-            tile.style.animationDelay = `${Math.random() * 2}s`;
-            
-            grid.appendChild(tile);
-            demoTiles.push(tile);
-            
-            // Add floating animation
-            tile.style.animation = `floatTile ${3 + Math.random() * 2}s infinite alternate ease-in-out`;
-          }
-        }
-      }
+      const title = document.createElement('h1');
+      title.className = 'start-title';
+      title.textContent = 'Color Cascade';
       
-      // Add CSS for the floating animation if it doesn't exist
-      if (!document.getElementById('intro-animations')) {
-        const style = document.createElement('style');
-        style.id = 'intro-animations';
-        style.textContent = `
-          @keyframes floatTile {
-            0% { transform: translate(0, 0) rotate(0deg); }
-            100% { transform: translate(${Math.random() * 20 - 10}px, ${Math.random() * 20 - 10}px) rotate(${Math.random() * 10 - 5}deg); }
-          }
-          
-          .intro-tile {
-            opacity: 0.8;
-            box-shadow: 0 0 15px currentColor;
-            transition: all 0.5s ease;
-          }
-          
-          .intro-tile:hover {
-            transform: scale(1.2) !important;
-            opacity: 1;
-            z-index: 200;
-          }
-          
-          .intro-text {
-            background: rgba(0, 0, 0, 0.7);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
-          }
-          
-          .intro-text h2 {
-            font-size: 1.8rem;
-            margin-bottom: 15px;
-            color: gold;
-          }
-          
-          .intro-text p {
-            margin: 10px 0;
-            font-size: 1.1rem;
-          }
-          
-          .start-button {
-            margin-top: 20px;
-            padding: 10px 30px;
-            background: linear-gradient(135deg, #4a00e0, #8e2de2);
-            border: none;
-            border-radius: 50px;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-          }
-          
-          .start-button:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
-          }
-        `;
-        document.head.appendChild(style);
-      }
+      const subtitle = document.createElement('p');
+      subtitle.className = 'start-subtitle';
+      subtitle.textContent = 'Match colors • Create combos • Beat your high score';
       
-      // Add a start button
       const startButton = document.createElement('button');
       startButton.className = 'start-button';
-      startButton.textContent = 'Start Game';
+      startButton.textContent = 'Play Now';
       startButton.addEventListener('click', () => {
-        // Clean up intro elements
-        introText.remove();
-        startButton.remove();
-        demoTiles.forEach(tile => tile.remove());
-        
-        // Start the actual game
-        startGame();
+        startScreen.style.opacity = '0';
+        setTimeout(() => {
+          startScreen.remove();
+          startGame();
+        }, 500);
       });
-      introText.appendChild(startButton);
       
-      // Show some demo combos
-      setTimeout(() => {
-        showDemoCombo(demoTiles, colors[0]);
-      }, 3000);
+      content.appendChild(logoArea);
+      content.appendChild(title);
+      content.appendChild(subtitle);
+      content.appendChild(startButton);
+      startScreen.appendChild(content);
+      
+      document.body.appendChild(startScreen);
+      
+      // Create D3 animations
+      createD3StartAnimation(d3Container, logoArea);
+    }
+    
+    // Create D3 animations for the start screen
+    function createD3StartAnimation(container, logoArea) {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      
+      // Create SVG for background animation
+      const svg = d3.select(container)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .style('position', 'absolute')
+        .style('top', 0)
+        .style('left', 0);
+      
+      // Create floating particles
+      const particles = [];
+      const particleCount = 50;
+      
+      for (let i = 0; i < particleCount; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          r: Math.random() * 15 + 5,
+          color: COLORS[Math.floor(Math.random() * COLORS.length)],
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2
+        });
+      }
+      
+      const particleElements = svg.selectAll('circle')
+        .data(particles)
+        .enter()
+        .append('circle')
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y)
+        .attr('r', 0)
+        .attr('fill', d => d.color)
+        .attr('opacity', 0.6)
+        .style('filter', 'blur(2px)')
+        .transition()
+        .duration(1000)
+        .attr('r', d => d.r);
+      
+      // Animate particles
+      function animateParticles() {
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          
+          if (p.x < 0 || p.x > width) p.vx *= -1;
+          if (p.y < 0 || p.y > height) p.vy *= -1;
+        });
+        
+        svg.selectAll('circle')
+          .data(particles)
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y);
+        
+        requestAnimationFrame(animateParticles);
+      }
+      
+      animateParticles();
+      
+      // Create logo animation in the logo area
+      const logoSvg = d3.select(logoArea)
+        .append('svg')
+        .attr('width', 300)
+        .attr('height', 300)
+        .attr('viewBox', '0 0 300 300');
+      
+      // Create cascading tiles animation
+      const tileSize = 40;
+      const cols = 6;
+      const rows = 6;
+      const logoTiles = [];
+      
+      for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+          const tile = {
+            x: 50 + j * tileSize,
+            y: 50 + i * tileSize,
+            color: COLORS[(i + j) % COLORS.length],
+            delay: (i + j) * 100
+          };
+          logoTiles.push(tile);
+        }
+      }
+      
+      logoSvg.selectAll('rect')
+        .data(logoTiles)
+        .enter()
+        .append('rect')
+        .attr('x', d => d.x)
+        .attr('y', -50)
+        .attr('width', tileSize - 5)
+        .attr('height', tileSize - 5)
+        .attr('rx', 8)
+        .attr('fill', d => d.color)
+        .attr('opacity', 0)
+        .transition()
+        .delay(d => d.delay)
+        .duration(800)
+        .attr('y', d => d.y)
+        .attr('opacity', 0.8)
+        .transition()
+        .duration(2000)
+        .attr('transform', function(d, i) {
+          return `rotate(${Math.sin(i) * 5} ${d.x + tileSize/2} ${d.y + tileSize/2})`;
+        });
+      
+      // Add pulsing animation to logo tiles
+      setInterval(() => {
+        logoSvg.selectAll('rect')
+          .transition()
+          .duration(1000)
+          .attr('opacity', 0.4)
+          .transition()
+          .duration(1000)
+          .attr('opacity', 0.8);
+      }, 2000);
     }
 
-    // Add a function to show a demo combo animation
-    function showDemoCombo(tiles, color) {
-      // Find tiles with matching colors
-      const matchingTiles = tiles.filter(tile => {
-        const content = tile.querySelector('.tile-content');
-        return content && content.style.backgroundColor === color;
-      });
-      
-      if (matchingTiles.length >= 3) {
-        // Highlight the first 3 matching tiles in sequence
-        for (let i = 0; i < 3; i++) {
-          setTimeout(() => {
-            if (matchingTiles[i]) {
-              matchingTiles[i].style.transform = 'scale(1.2)';
-              matchingTiles[i].style.boxShadow = `0 0 25px ${color}`;
-              matchingTiles[i].style.zIndex = '150';
-              
-              // Connect with previous tile
-              if (i > 0) {
-                const prevTile = matchingTiles[i-1];
-                const gridRect = grid.getBoundingClientRect();
-                
-                // Create a trail between tiles
-                const trail = document.createElement('div');
-                trail.className = 'demo-trail';
-                trail.style.position = 'absolute';
-                trail.style.backgroundColor = color;
-                trail.style.height = '5px';
-                trail.style.borderRadius = '5px';
-                trail.style.zIndex = '140';
-                trail.style.boxShadow = `0 0 10px ${color}`;
-                
-                // Calculate positions
-                const rect1 = prevTile.getBoundingClientRect();
-                const rect2 = matchingTiles[i].getBoundingClientRect();
-                
-                const x1 = rect1.left + rect1.width/2 - gridRect.left;
-                const y1 = rect1.top + rect1.height/2 - gridRect.top;
-                const x2 = rect2.left + rect2.width/2 - gridRect.left;
-                const y2 = rect2.top + rect2.height/2 - gridRect.top;
-                
-                // Calculate angle and length
-                const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-                const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-                
-                // Position the trail
-                trail.style.width = `${length}px`;
-                trail.style.left = `${x1}px`;
-                trail.style.top = `${y1}px`;
-                trail.style.transformOrigin = '0 50%';
-                trail.style.transform = `rotate(${angle}deg)`;
-                
-                grid.appendChild(trail);
-                
-                // Remove trail after a delay
-                setTimeout(() => {
-                  trail.style.opacity = '0';
-                  setTimeout(() => trail.remove(), 500);
-                }, 1500);
-              }
-            }
-          }, i * 500);
-        }
-        
-        // Show a combo text
-        setTimeout(() => {
-          const comboText = document.createElement('div');
-          comboText.className = 'combo-text';
-          comboText.textContent = 'COMBO 3X';
-          comboText.style.animation = 'comboFadeBig 2s forwards';
-          grid.appendChild(comboText);
-          
-          // Remove after animation
-          setTimeout(() => comboText.remove(), 2000);
-          
-          // Reset tiles
-          setTimeout(() => {
-            matchingTiles.forEach(tile => {
-              tile.style.transform = '';
-              tile.style.boxShadow = '';
-              tile.style.zIndex = '';
-            });
-            
-            // Show another demo with a different color
-            const nextColorIndex = (COLORS.indexOf(color) + 1) % COLORS.length;
-            showDemoCombo(tiles, COLORS[nextColorIndex]);
-          }, 2500);
-        }, 1500);
-      } else {
-        // Not enough matching tiles, try another color
-        const nextColorIndex = (COLORS.indexOf(color) + 1) % COLORS.length;
-        showDemoCombo(tiles, COLORS[nextColorIndex]);
-      }
-    }
 
     // New function to check if there's only one tile of each color left
     function isSingletonMode() {
